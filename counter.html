@@ -10,13 +10,27 @@
             text-align: center;
             margin: 50px;
         }
+
+        #sensitivity {
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        button {
+            margin: 5px;
+            padding: 5px 10px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <h1>Knock Counter</h1>
-    
+
     <label for="intensity">Intensity:</label>
     <input type="range" id="intensity" min="1" max="100" value="50">
+    <button onclick="decreaseIntensity()">Decrease</button>
+    <button onclick="increaseIntensity()">Increase</button>
+    <p id="sensitivity">Sensitivity: 50%</p>
 
     <button id="startStop">Start</button>
     <p id="knockCount">Knock count: 0</p>
@@ -29,6 +43,7 @@
         const startStopButton = document.getElementById('startStop');
         const intensitySlider = document.getElementById('intensity');
         const knockCountElement = document.getElementById('knockCount');
+        const sensitivityElement = document.getElementById('sensitivity');
 
         startStopButton.addEventListener('click', toggleListening);
         intensitySlider.addEventListener('input', updateIntensityThreshold);
@@ -87,6 +102,27 @@
 
         function updateIntensityThreshold() {
             intensityThreshold = parseInt(intensitySlider.value);
+            updateSensitivityText();
+        }
+
+        function increaseIntensity() {
+            if (intensityThreshold < 100) {
+                intensityThreshold++;
+                intensitySlider.value = intensityThreshold;
+                updateSensitivityText();
+            }
+        }
+
+        function decreaseIntensity() {
+            if (intensityThreshold > 1) {
+                intensityThreshold--;
+                intensitySlider.value = intensityThreshold;
+                updateSensitivityText();
+            }
+        }
+
+        function updateSensitivityText() {
+            sensitivityElement.textContent = `Sensitivity: ${intensityThreshold}%`;
         }
 
         function handleError(error) {
