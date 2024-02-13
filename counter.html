@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knock Counter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Knock Counter</h1>
+    
+    <label for="intensity">Intensity:</label>
+    <input type="range" id="intensity" min="1" max="100" value="50">
+
+    <button id="startStop">Start</button>
+    <p id="knockCount">Knock count: 0</p>
+
+    <script>
+        let isListening = false;
+        let knockCount = 0;
+        let intensityThreshold = 50; // Default intensity threshold
+
+        const startStopButton = document.getElementById('startStop');
+        const intensitySlider = document.getElementById('intensity');
+        const knockCountElement = document.getElementById('knockCount');
+
+        startStopButton.addEventListener('click', toggleListening);
+        intensitySlider.addEventListener('input', updateIntensityThreshold);
+
+        function toggleListening() {
+            if (!isListening) {
+                startListening();
+            } else {
+                stopListening();
+            }
+        }
+
+        function startListening() {
+            isListening = true;
+            startStopButton.textContent = 'Stop';
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(handleSuccess)
+                .catch(handleError);
+        }
+
+        function stopListening() {
+            isListening = false;
+            startStopButton.textContent = 'Start';
+        }
+
+        function handleSuccess(stream) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const microphone = audioContext.createMediaStreamSource(stream);
+            const analyser = audioContext.createAnalyser();
+
+            microphone.connect(analyser);
+            analyser.fftSize = 256;
+
+            const dataArray = new Uint8Array(analyser.fftSize);
+
+            function detectKnock() {
+                analyser.getByteFrequencyData(dataArray);
+                const intensity = getAverageIntensity(dataArray);
+                if (intensity > intensityThreshold) {
+                    knockCount++;
+                    knockCountElement.textContent = `Knock count: ${knockCount}`;
+                }
+                if (isListening) {
+                    requestAnimationFrame(detectKnock);
+                }
+            }
+
+            detectKnock();
+        }
+
+        function getAverageIntensity(dataArray) {
+            const sum = dataArray.reduce((acc, value) => acc + value, 0);
+            const average = sum / dataArray.length;
+            return average;
+        }
+
+        function updateIntensityThreshold() {
+            intensityThreshold = parseInt(intensitySlider.value);
+        }
+
+        function handleError(error) {
+            console.error('Error accessing microphone:', error);
+        }
+    </script>
+</body>
+</html>
