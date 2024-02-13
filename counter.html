@@ -136,38 +136,37 @@
             resetVisualPulse();
         }
 
-        function handleSuccess(stream) {
+function handleSuccess(stream) {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const microphone = audioContext.createMediaStreamSource(stream);
     const analyser = audioContext.createAnalyser();
 
-    microphone.connect(analyser);
     analyser.fftSize = 256;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
 
-    const dataArray = new Uint8Array(analyser.fftSize);
+    analyser.connect(audioContext.destination);
+    microphone.connect(analyser);
 
-    analyser.addEventListener('audioprocess', function() {
+    function detectKnock() {
         analyser.getByteFrequencyData(dataArray);
-        const intensity = getAverageIntensity(dataArray);
+
+        const intensity = dataArray.reduce((acc, value) => acc + value, 0) / bufferLength;
+
         if (intensity > intensityThreshold) {
             debounceIncrement();
             updateVisualPulse(intensity);
         } else {
             updateVisualPulse(0);
         }
-    });
-}
 
-function detectKnock() {
-    if (isListening) {
-        requestAnimationFrame(detectKnock);
-    }
-}
-
-// Rest of the code remains unchanged
-
-            detectKnock();
+        if (isListening) {
+            requestAnimationFrame(detectKnock);
         }
+    }
+
+    detectKnock();
+}
 
         function getAverageIntensity(dataArray) {
             const sum = dataArray.reduce((acc, value) => acc + value, 0);
