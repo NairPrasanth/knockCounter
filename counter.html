@@ -68,39 +68,39 @@
 </head>
 <body>
     <h1>Knock Counter</h1>
-    <br\>
+    <br/>
     <svg id="pulse"></svg>
-    <br\>
+    <br/>
     <label for="intensity" class="tooltip">
         Intensity:
         <span class="tooltip-text">Adjust the sensitivity level</span>
     </label>
-    <br\>
+    <br/>
     <input type="range" id="intensity" min="1" max="100" value="50" class="tooltip">
     <p id="sensitivity" class="tooltip">
         Sensitivity: 50%
         <span class="tooltip-text">Current sensitivity level</span>
     </p>
-    <br\>
+    <br/>
     <button onclick="decreaseIntensity()" class="tooltip">
         Decrease
     </button>
     <button onclick="increaseIntensity()" class="tooltip">
         Increase
     </button>
-    <br\>
+    <br/>
 
     <label for="debounceTime" class="tooltip">
         Debounce Time (ms):
     </label>
     <input type="number" id="debounceTime" value="500" class="tooltip">
-    <br\>
+    <br/>
     <button id="startStop" class="tooltip">
         Start
         <span class="tooltip-text">Begin detecting knocks</span>
     </button>
     <p id="knockCount" class="tooltip">
-       <h1> Knock count: 0 </h1>
+        Knock count: 0 
     </p>
 
     <script>
