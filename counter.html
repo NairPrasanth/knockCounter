@@ -11,227 +11,90 @@
             margin: 50px;
         }
 
-        #sensitivity {
-            font-size: 14px;
-            margin-top: 10px;
+        h1 {
+            margin-bottom: 20px;
         }
 
-        button {
-            margin: 5px;
-            padding: 5px 10px;
-            font-size: 14px;
+        #visual-graph {
+            background-color: black;
+            width: 100%;
+            height: 100px;
+            margin-bottom: 20px;
+        }
+
+        #intensity-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        #intensity-slider,
+        #sensitivity {
+            margin: 0 10px;
+        }
+
+        #controls-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        #debounce-time,
+        #debounce-text {
+            margin: 0 10px;
+        }
+
+        #start-button {
+            font-size: 20px;
+            padding: 10px 20px;
+            margin-bottom: 10px;
+        }
+
+        #knock-count-header {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        #knock-count {
+            font-size: 24px;
         }
 
         .tooltip {
-            position: relative;
-            display: inline-block;
-            cursor: pointer;
-        }
-
-        .tooltip-text {
-            visibility: hidden;
-            width: 120px;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 5px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -60px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .tooltip:hover .tooltip-text {
-            visibility: visible;
-            opacity: 1;
-        }
-
-        #pulse {
-            width: 100%;
-            height: 100px;
-            margin: 20px 0;
-        }
-
-        .cutoff-line {
-            stroke: red;
-            stroke-width: 2;
-        }
-
-        .pulse-bar {
-            fill: #007BFF;
+            display: none;
         }
     </style>
 </head>
 <body>
     <h1>Knock Counter</h1>
 
-    <svg id="pulse"></svg>
+    <div id="visual-graph"></div>
 
-    <label for="intensity" class="tooltip">
-        Intensity:
-        <span class="tooltip-text">Adjust the sensitivity level</span>
-    </label>
-    <input type="range" id="intensity" min="1" max="100" value="50" class="tooltip">
-    <button onclick="decreaseIntensity()" class="tooltip">
-        Decrease
-        <span class="tooltip-text">Decrease sensitivity</span>
-    </button>
-    <button onclick="increaseIntensity()" class="tooltip">
-        Increase
-        <span class="tooltip-text">Increase sensitivity</span>
-    </button>
-    <p id="sensitivity" class="tooltip">
-        Sensitivity: 50%
-        <span class="tooltip-text">Current sensitivity level</span>
-    </p>
+    <div id="intensity-container">
+        <label for="intensity">Intensity:</label>
+        <input type="range" id="intensity-slider" min="1" max="100" value="50">
+        <p id="sensitivity">Sensitivity: 50%</p>
+    </div>
 
-    <label for="debounceTime" class="tooltip">
-        Debounce Time (ms):
-        <span class="tooltip-text">Set the debounce time in milliseconds</span>
-    </label>
-    <input type="number" id="debounceTime" value="500" class="tooltip">
+    <div id="controls-container">
+        <button onclick="decreaseIntensity()">Decrease</button>
+        <button onclick="increaseIntensity()">Increase</button>
+        <label for="debounce-time">Debounce Time (ms):</label>
+        <input type="number" id="debounce-time" value="500">
+    </div>
 
-    <button id="startStop" class="tooltip">
-        Start
-        <span class="tooltip-text">Begin detecting knocks</span>
-    </button>
-    <p id="knockCount" class="tooltip">
-        Knock count: 0
-        <span class="tooltip-text">Total number of knocks detected</span>
-    </p>
+    <div>
+        <button id="start-button" onclick="toggleListening">Start</button>
+    </div>
+
+    <div>
+        <p id="knock-count-header">Knock Count:</p>
+        <p id="knock-count">0</p>
+    </div>
 
     <script>
-        let isListening = false;
-        let knockCount = 0;
-        let intensityThreshold = 50; // Default intensity threshold
-        let debounceTimeout;
-        let pulseBarHeight = 0;
-
-        const startStopButton = document.getElementById('startStop');
-        const intensitySlider = document.getElementById('intensity');
-        const knockCountElement = document.getElementById('knockCount');
-        const sensitivityElement = document.getElementById('sensitivity');
-        const debounceTimeInput = document.getElementById('debounceTime');
-        const pulseSVG = document.getElementById('pulse');
-
-        startStopButton.addEventListener('click', toggleListening);
-        intensitySlider.addEventListener('input', updateIntensityThreshold);
-
-        function toggleListening() {
-            if (!isListening) {
-                startListening();
-            } else {
-                stopListening();
-            }
-        }
-
-        function startListening() {
-            isListening = true;
-            startStopButton.textContent = 'Stop';
-            resetVisualPulse();
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(handleSuccess)
-                .catch(handleError);
-        }
-
-        function stopListening() {
-            isListening = false;
-            startStopButton.textContent = 'Start';
-            resetVisualPulse();
-        }
-
-        function handleSuccess(stream) {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const microphone = audioContext.createMediaStreamSource(stream);
-            const analyser = audioContext.createAnalyser();
-
-            microphone.connect(analyser);
-            analyser.fftSize = 256;
-
-            const dataArray = new Uint8Array(analyser.fftSize);
-
-            function detectKnock() {
-                analyser.getByteFrequencyData(dataArray);
-                const intensity = getAverageIntensity(dataArray);
-                if (intensity > intensityThreshold) {
-                    debounceIncrement();
-                    updateVisualPulse(intensity);
-                } else {
-                    updateVisualPulse(0);
-                }
-                if (isListening) {
-                    requestAnimationFrame(detectKnock);
-                }
-            }
-
-            detectKnock();
-        }
-
-        function getAverageIntensity(dataArray) {
-            const sum = dataArray.reduce((acc, value) => acc + value, 0);
-            const average = sum / dataArray.length;
-            return average;
-        }
-
-        function debounceIncrement() {
-            const debounceTime = parseInt(debounceTimeInput.value) || 500;
-            clearTimeout(debounceTimeout);
-            debounceTimeout = setTimeout(() => {
-                knockCount++;
-                knockCountElement.textContent = `Knock count: ${knockCount}`;
-            }, debounceTime);
-        }
-
-        function updateIntensityThreshold() {
-            intensityThreshold = parseInt(intensitySlider.value);
-            updateSensitivityText();
-        }
-
-        function increaseIntensity() {
-            if (intensityThreshold < 100) {
-                intensityThreshold++;
-                intensitySlider.value = intensityThreshold;
-                updateSensitivityText();
-            }
-        }
-
-        function decreaseIntensity() {
-            if (intensityThreshold > 1) {
-                intensityThreshold--;
-                intensitySlider.value = intensityThreshold;
-                updateSensitivityText();
-            }
-        }
-
-        function updateSensitivityText() {
-            sensitivityElement.textContent = `Sensitivity: ${intensityThreshold}%`;
-        }
-
-        function updateVisualPulse(intensity) {
-            const maxHeight = 100;
-            pulseBarHeight = intensity / 255 * maxHeight;
-            drawPulse();
-        }
-
-        function resetVisualPulse() {
-            pulseBarHeight = 0;
-            drawPulse();
-        }
-
-        function drawPulse() {
-            pulseSVG.innerHTML = `
-                <rect class="cutoff-line" x="0" y="${100 - intensityThreshold}" width="100%" height="2"/>
-                <rect class="pulse-bar" x="0" y="${100 - pulseBarHeight}" width="100%" height="${pulseBarHeight}"/>
-            `;
-        }
-
-        function handleError(error) {
-            console.error('Error accessing microphone:', error);
-        }
+        // Your JavaScript code goes here
     </script>
 </body>
 </html>
