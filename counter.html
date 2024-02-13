@@ -11,90 +11,98 @@
             margin: 50px;
         }
 
-        h1 {
-            margin-bottom: 20px;
-        }
-
-        #visual-graph {
-            background-color: black;
-            width: 100%;
-            height: 100px;
-            margin-bottom: 20px;
-        }
-
-        #intensity-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 10px;
-        }
-
-        #intensity-slider,
         #sensitivity {
-            margin: 0 10px;
+            font-size: 14px;
+            margin-top: 10px;
         }
 
-        #controls-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap; /* Allow items to wrap onto the next line */
-            margin-bottom: 20px;
-        }
-
-        #increase-btn,
-        #decrease-btn,
-        #debounce-time,
-        #debounce-text {
-            margin: 10px;
-        }
-
-        #start-button {
-            font-size: 20px;
-            padding: 10px 20px;
-            margin-bottom: 10px;
-        }
-
-        #knock-count-header {
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-
-        #knock-count {
-            font-size: 24px;
+        button {
+            margin: 5px;
+            padding: 5px 10px;
+            font-size: 14px;
         }
 
         .tooltip {
-            display: none;
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: 120px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        #pulse {
+            width: 100%;
+            height: 100px;
+            margin: 20px 0;
+        }
+
+        .cutoff-line {
+            stroke: red;
+            stroke-width: 2;
+        }
+
+        .pulse-bar {
+            fill: #007BFF;
         }
     </style>
 </head>
 <body>
     <h1>Knock Counter</h1>
 
-    <div id="visual-graph"></div>
+    <svg id="pulse"></svg>
 
-    <div id="intensity-container">
-        <label for="intensity">Intensity:</label>
-        <input type="range" id="intensity-slider" min="1" max="100" value="50">
-        <p id="sensitivity">Sensitivity: 50%</p>
-    </div>
+    <label for="intensity" class="tooltip">
+        Intensity:
+        <span class="tooltip-text">Adjust the sensitivity level</span>
+    </label>
+    <input type="range" id="intensity" min="1" max="100" value="50" class="tooltip">
+    <button onclick="decreaseIntensity()" class="tooltip">
+        Decrease
+        <span class="tooltip-text">Decrease sensitivity</span>
+    </button>
+    <button onclick="increaseIntensity()" class="tooltip">
+        Increase
+        <span class="tooltip-text">Increase sensitivity</span>
+    </button>
+    <p id="sensitivity" class="tooltip">
+        Sensitivity: 50%
+        <span class="tooltip-text">Current sensitivity level</span>
+    </p>
 
-    <div id="controls-container">
-        <button id="decrease-btn" onclick="decreaseIntensity()">Decrease</button>
-        <button id="increase-btn" onclick="increaseIntensity()">Increase</button>
-        <label for="debounce-time">Debounce Time (ms):</label>
-        <input type="number" id="debounce-time" value="500">
-    </div>
+    <label for="debounceTime" class="tooltip">
+        Debounce Time (ms):
+        <span class="tooltip-text">Set the debounce time in milliseconds</span>
+    </label>
+    <input type="number" id="debounceTime" value="500" class="tooltip">
 
-    <div>
-        <button id="start-button" onclick="toggleListening()">Start</button>
-    </div>
-
-    <div>
-        <p id="knock-count-header">Knock Count:</p>
-        <p id="knock-count">0</p>
-    </div>
+    <button id="startStop" class="tooltip">
+        Start
+        <span class="tooltip-text">Begin detecting knocks</span>
+    </button>
+    <p id="knockCount" class="tooltip">
+        Knock count: 0
+        <span class="tooltip-text">Total number of knocks detected</span>
+    </p>
 
     <script>
         let isListening = false;
@@ -103,12 +111,12 @@
         let debounceTimeout;
         let pulseBarHeight = 0;
 
-        const startStopButton = document.getElementById('start-button');
-        const intensitySlider = document.getElementById('intensity-slider');
-        const knockCountElement = document.getElementById('knock-count');
+        const startStopButton = document.getElementById('startStop');
+        const intensitySlider = document.getElementById('intensity');
+        const knockCountElement = document.getElementById('knockCount');
         const sensitivityElement = document.getElementById('sensitivity');
-        const debounceTimeInput = document.getElementById('debounce-time');
-        const pulseGraph = document.getElementById('visual-graph');
+        const debounceTimeInput = document.getElementById('debounceTime');
+        const pulseSVG = document.getElementById('pulse');
 
         startStopButton.addEventListener('click', toggleListening);
         intensitySlider.addEventListener('input', updateIntensityThreshold);
@@ -136,37 +144,32 @@
             resetVisualPulse();
         }
 
-function handleSuccess(stream) {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const microphone = audioContext.createMediaStreamSource(stream);
-    const analyser = audioContext.createAnalyser();
+        function handleSuccess(stream) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const microphone = audioContext.createMediaStreamSource(stream);
+            const analyser = audioContext.createAnalyser();
 
-    analyser.fftSize = 256;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+            microphone.connect(analyser);
+            analyser.fftSize = 256;
 
-    analyser.connect(audioContext.destination);
-    microphone.connect(analyser);
+            const dataArray = new Uint8Array(analyser.fftSize);
 
-    function detectKnock() {
-        analyser.getByteFrequencyData(dataArray);
+            function detectKnock() {
+                analyser.getByteFrequencyData(dataArray);
+                const intensity = getAverageIntensity(dataArray);
+                if (intensity > intensityThreshold) {
+                    debounceIncrement();
+                    updateVisualPulse(intensity);
+                } else {
+                    updateVisualPulse(0);
+                }
+                if (isListening) {
+                    requestAnimationFrame(detectKnock);
+                }
+            }
 
-        const intensity = dataArray.reduce((acc, value) => acc + value, 0) / bufferLength;
-
-        if (intensity > intensityThreshold) {
-            debounceIncrement();
-            updateVisualPulse(intensity);
-        } else {
-            updateVisualPulse(0);
+            detectKnock();
         }
-
-        if (isListening) {
-            requestAnimationFrame(detectKnock);
-        }
-    }
-
-    detectKnock();
-}
 
         function getAverageIntensity(dataArray) {
             const sum = dataArray.reduce((acc, value) => acc + value, 0);
@@ -220,7 +223,7 @@ function handleSuccess(stream) {
         }
 
         function drawPulse() {
-            pulseGraph.innerHTML = `
+            pulseSVG.innerHTML = `
                 <rect class="cutoff-line" x="0" y="${100 - intensityThreshold}" width="100%" height="2"/>
                 <rect class="pulse-bar" x="0" y="${100 - pulseBarHeight}" width="100%" height="${pulseBarHeight}"/>
             `;
